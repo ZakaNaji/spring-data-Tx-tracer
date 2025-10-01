@@ -21,9 +21,9 @@ public class UserService {
         System.out.println("user saved [this is before the commit]");
     }
 
-    @Transactional(readOnly = true)
+
     public User findUser(Long id) {
         // TODO: retrieve user
-        return null;
+        return em.find(User.class, id);
     }
 }

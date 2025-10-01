@@ -15,6 +15,7 @@ public class App {
 
             UserService userService = ctx.getBean(UserService.class);
             userService.createUser(user);
+            System.out.println("Added user: " + userService.findUser(1l));
             System.out.println("End");
         }
     }
