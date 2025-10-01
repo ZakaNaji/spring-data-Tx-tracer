@@ -1,10 +1,8 @@
 package lab.tracer.config;
 
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.*;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -14,6 +12,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.sql.DataSource;
+import java.lang.reflect.Proxy;
 import java.util.Properties;
 
 @Configuration
@@ -41,13 +40,31 @@ public class AppConfig {
 
         Properties jpaProperties = new Properties();
         jpaProperties.put("hibernate.hbm2ddl.auto", "update");
-        jpaProperties.put("org.hibernate.flushMode", "COMMIT    ");
+        jpaProperties.put("org.hibernate.flushMode", "AUTO");
 
         managerFactoryBean.setJpaVendorAdapter(vendor);
         managerFactoryBean.setPackagesToScan("lab.tracer.entity");
         managerFactoryBean.setDataSource(dataSource());
         managerFactoryBean.setJpaProperties(jpaProperties);
         return managerFactoryBean;
+    }
+
+    @Bean
+    @Primary
+    public EntityManagerFactory tracedEntityManagerFactory(LocalContainerEntityManagerFactoryBean factoryBean) {
+        EntityManagerFactory realEmf = factoryBean.getObject();
+        return (EntityManagerFactory) Proxy.newProxyInstance(
+                realEmf.getClass().getClassLoader(),
+                new Class[]{EntityManagerFactory.class},
+                (proxy, method, args) -> {
+                    if ("createEntityManager".equals(method.getName())) {
+                        EntityManager em = (EntityManager) method.invoke(realEmf, args);
+                        System.out.println("[EM-Tracer] Created EntityManager: " + em);
+                        return lab.tracer.aspect.TracingEntityManager.wrap(em);
+                    }
+                    return method.invoke(realEmf, args);
+                }
+        );
     }
 
     @Bean
