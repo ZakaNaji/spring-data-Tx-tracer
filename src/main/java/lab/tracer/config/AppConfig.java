@@ -1,7 +1,20 @@
 package lab.tracer.config;
 
-import org.springframework.context.annotation.*;
+import jakarta.persistence.EntityManagerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import javax.sql.DataSource;
+import java.util.Properties;
 
 @Configuration
 @ComponentScan(basePackages = "lab.tracer")
@@ -9,4 +22,38 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement
 public class AppConfig {
     // TODO: Configure EntityManagerFactory + TransactionManager beans here if using Spring-managed JPA
+
+    @Bean
+    public DataSource dataSource() {
+        return new EmbeddedDatabaseBuilder()
+                .setType(EmbeddedDatabaseType.H2)
+                .setName("test")
+                .build();
+    }
+
+    @Bean
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+        LocalContainerEntityManagerFactoryBean managerFactoryBean = new LocalContainerEntityManagerFactoryBean();
+        HibernateJpaVendorAdapter vendor = new HibernateJpaVendorAdapter();
+        vendor.setGenerateDdl(true);
+        vendor.setShowSql(true);
+
+
+        Properties jpaProperties = new Properties();
+        jpaProperties.put("hibernate.hbm2ddl.auto", "update");
+        jpaProperties.put("org.hibernate.flushMode", "COMMIT    ");
+
+        managerFactoryBean.setJpaVendorAdapter(vendor);
+        managerFactoryBean.setPackagesToScan("lab.tracer.entity");
+        managerFactoryBean.setDataSource(dataSource());
+        managerFactoryBean.setJpaProperties(jpaProperties);
+        return managerFactoryBean;
+    }
+
+    @Bean
+    public PlatformTransactionManager transactionManager(EntityManagerFactory emf) {
+        JpaTransactionManager jpaTransactionManager = new JpaTransactionManager();
+        jpaTransactionManager.setEntityManagerFactory(emf);
+        return jpaTransactionManager;
+    }
 }
